@@ -12,7 +12,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <style>
@@ -910,17 +910,28 @@ async function toggleScan() {
 
 async function startScan() {
   try {
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+    codeReader = new ZXing.BrowserMultiFormatReader();
 
-    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-    if (!devices.length) { showToast('No se encontró cámara', 'error'); return; }
+    // Pedir permiso de cámara primero
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+    stream.getTracks().forEach(t => t.stop()); // solo para pedir permiso
 
-    const back = devices.find(d =>
+    // Obtener dispositivos
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+    if (!videoDevices.length) {
+      showToast('No se encontró cámara', 'error');
+      return;
+    }
+
+    // Preferir cámara trasera
+    const back = videoDevices.find(d =>
       /back|rear|trasera|environment/i.test(d.label)
     );
-    const deviceId = back ? back.deviceId : devices[devices.length-1].deviceId;
+    const deviceId = back ? back.deviceId : videoDevices[videoDevices.length - 1].deviceId;
 
     scanning = true;
     document.getElementById('scanArea').classList.add('visible');
@@ -1351,7 +1362,7 @@ if ('serviceWorker' in navigator) {
     const CACHE = 'don-chiche-stock-v3';
     const URLS_TO_CACHE = [
       'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap',
-      'https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js',
+      'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js',
       'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
     ];
 
