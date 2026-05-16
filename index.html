@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 
 <style>
   :root {
@@ -854,11 +854,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG EMAILJS ──
-const EMAILJS_PUBLIC_KEY  = 'Eug8XBm4t5p4s3tdn';
-const EMAILJS_SERVICE_ID  = 'service_zigtv5m';
-const EMAILJS_TEMPLATE_ID = 'template_rjtnvei';
-emailjs.init(EMAILJS_PUBLIC_KEY);
+
 
 // ── ESTADO ──
 let supermercado = null;
@@ -1282,47 +1278,84 @@ async function enviarCSV() {
   if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
   if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
 
-  const csv  = generarCSV();
-  const now  = new Date();
-  const tsEnvio = formatTimestamp(now);
-
-  // Fecha legible para el nombre del archivo
-  const [yyyy, mm, dd] = fecha.split('-');
-  const fechaLegible = `${dd}/${mm}/${yyyy}`;
-  const nombre = `stock_${supermercado.replace(/\s/g,'_')}_${repositor.replace(/\s/g,'_')}_${yyyy}${mm}${dd}_turno_${turno}.csv`;
+  const csv   = generarCSV();
+  const now   = new Date();
+  const partes = fecha.split('-');
+  const yyyy = partes[0], mm = partes[1], dd = partes[2];
+  const fechaLegible = dd + '/' + mm + '/' + yyyy;
+  const superSlug = supermercado.replace(/ /g, '_');
+  const repoSlug  = repositor.replace(/ /g, '_');
+  const nombre = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.csv';
 
   document.getElementById('loadingOverlay').classList.add('visible');
 
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      supermercado:   supermercado,
-      fecha:          `${fechaLegible} - Turno ${turno}`,
-      nombre_archivo: nombre,
-      csv_content:    `Repositor: ${repositor}\nLocal: ${supermercado}\nFecha: ${fechaLegible}\nTurno: ${turno}\nEnviado: ${tsEnvio}\nTotal ítems: ${items.length}\n\n${csv}`,
-      name:           repositor,
-      email:          'gabdala1713@gmail.com',
-    });
+    // PASO 1: Descargar CSV con BOM para que Excel lo abra bien
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    // PASO 2: Armar mailto con asunto y cuerpo prellenado
+    const asunto = encodeURIComponent(
+      'Stock ' + supermercado + ' - ' + fechaLegible + ' - Turno ' + turno + ' - ' + repositor
+    );
+    const cuerpo = encodeURIComponent(
+      'Repositor: ' + repositor + '\n' +
+      'Local: ' + supermercado + '\n' +
+      'Fecha: ' + fechaLegible + '\n' +
+      'Turno: ' + turno + '\n' +
+      'Total items: ' + items.length + '\n\n' +
+      '--- CONTENIDO CSV ---\n' +
+      csv
+    );
+    const mailto = 'mailto:gabdala1713@gmail.com?subject=' + asunto + '&body=' + cuerpo;
 
     document.getElementById('loadingOverlay').classList.remove('visible');
-    showToast('✓ CSV enviado por email!', 'success');
     limpiarLocal();
-    descargarCSV(csv, nombre);
+    showModalEnvio(nombre, mailto);
 
   } catch(err) {
     document.getElementById('loadingOverlay').classList.remove('visible');
-    showToast('Error: ' + (err.text || err.message || 'desconocido'), 'error');
+    showToast('Error: ' + (err.message || 'desconocido'), 'error');
     console.error(err);
   }
 }
 
-// ── DESCARGA LOCAL BACKUP ──
-function descargarCSV(csv, nombre) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = nombre; a.click();
-  URL.revokeObjectURL(url);
+// ── MODAL DE ENVÍO ──
+function showModalEnvio(nombre, mailto) {
+  let modal = document.getElementById('modalEnvio');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalEnvio';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = '<div class="modal-box" style="border-color:#039a11;">' +
+      '<div class="modal-icon">✅</div>' +
+      '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">CSV DESCARGADO</div>' +
+      '<div class="modal-msg" style="margin-bottom:8px;">El archivo <strong style="color:#e8f5e9" id="modalNombreArchivo"></strong> se guardó en Descargas.</div>' +
+      '<div class="modal-msg" style="margin-bottom:20px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ABRIR MAIL</strong>. Se abre tu correo con el asunto ya cargado y el CSV en el cuerpo. Tambien podés adjuntar el archivo desde Descargas.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">' +
+      '<a id="modalMailtoBtn" href="#" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ABRIR MAIL</a>' +
+      '<button onclick="cerrarModalEnvio()" style="background:transparent;border:1px solid #1e3d22;border-radius:12px;padding:12px;color:#4a7a52;font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Cerrar</button>' +
+      '</div></div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('modalNombreArchivo').textContent = nombre;
+  document.getElementById('modalMailtoBtn').href = mailto;
+  modal.classList.add('visible');
 }
+
+function cerrarModalEnvio() {
+  const modal = document.getElementById('modalEnvio');
+  if (modal) modal.classList.remove('visible');
+}
+
+
 
 // ── MODAL LIMPIAR ──
 function limpiarTodo() {
@@ -1521,7 +1554,6 @@ if ('serviceWorker' in navigator) {
     const URLS_TO_CACHE = [
       'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap',
       'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js',
-      'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
     ];
 
     self.addEventListener('install', e => {
