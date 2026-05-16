@@ -989,7 +989,7 @@ async function startScan() {
 }
 
 // ── MÉTODO 1: BarcodeDetector nativo (Chrome Android >= 83) ──
-// Usa el chip del celu directamente → detecta en <100ms
+// Usa el chip del celu directamente -> detecta en <100ms
 async function startNativeScanner(videoEl, track) {
   const detector = new BarcodeDetector({
     formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39']
@@ -1369,19 +1369,20 @@ async function enviarCSV() {
   if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
   if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
 
+  const csv    = generarCSV();
   const partes = fecha.split('-');
   const yyyy = partes[0], mm = partes[1], dd = partes[2];
   const fechaLegible = dd + '/' + mm + '/' + yyyy;
-  const superSlug = supermercado.replace(/ /g, '_');
-  const repoSlug  = repositor.replace(/ /g, '_');
-  const nombreXlsx = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.xlsx';
-  const nombreCsv  = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.csv';
+  const superSlug    = supermercado.replace(/ /g, '_');
+  const repoSlug     = repositor.replace(/ /g, '_');
+  const nombreBase   = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno;
+  const nombreXlsx   = nombreBase + '.xlsx';
+  const nombreCsv    = nombreBase + '.csv';
 
   document.getElementById('loadingOverlay').classList.add('visible');
 
   try {
-    // ── Descargar EXCEL ──
-    // Descargar Excel (formato SpreadsheetML que abre Excel)
+    // 1. Descargar Excel
     const xlsBlob = generarExcelBlob();
     const xlsUrl  = URL.createObjectURL(xlsBlob);
     const xlsA    = document.createElement('a');
@@ -1390,17 +1391,16 @@ async function enviarCSV() {
     document.body.removeChild(xlsA);
     setTimeout(() => URL.revokeObjectURL(xlsUrl), 1000);
 
-    // ── Descargar CSV (para el bot) ──
-    const csv  = generarCSV();
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = nombreCsv;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    // 2. Descargar CSV
+    const csvBlob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const csvUrl  = URL.createObjectURL(csvBlob);
+    const csvA    = document.createElement('a');
+    csvA.href = csvUrl; csvA.download = nombreCsv;
+    document.body.appendChild(csvA); csvA.click();
+    document.body.removeChild(csvA);
+    setTimeout(() => URL.revokeObjectURL(csvUrl), 1000);
 
-    // ── Armar mailto ──
+    // 3. Abrir mail con CSV pegado en el cuerpo (el bot lo lee de acá)
     const asunto = encodeURIComponent(
       'Stock ' + supermercado + ' - ' + fechaLegible + ' - Turno ' + turno + ' - ' + repositor
     );
@@ -1410,8 +1410,8 @@ async function enviarCSV() {
       'Fecha: ' + fechaLegible + '\n' +
       'Turno: ' + turno + '\n' +
       'Total items: ' + items.length + '\n\n' +
-      'Adjuntar el archivo: ' + nombreCsv + '\n' +
-      '(guardado en Descargas del celular)'
+      '--- CONTENIDO CSV ---\n' +
+      csv
     );
     const mailto = 'mailto:gabdala1713@gmail.com?subject=' + asunto + '&body=' + cuerpo;
 
@@ -1439,16 +1439,16 @@ function showModalEnvio(nombreCsv, nombreXlsx, mailto) {
     '<div class="modal-icon">✅</div>' +
     '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">ARCHIVOS LISTOS</div>' +
     '<div style="background:#1a2e1d;border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;">' +
-      '<div style="font-size:12px;color:#4a7a52;margin-bottom:6px;letter-spacing:1px;">DESCARGADOS EN TU CELULAR:</div>' +
-      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:4px;">📊 <strong>' + nombreXlsx + '</strong></div>' +
-      '<div style="font-size:11px;color:#4a7a52;">Excel listo para abrir</div>' +
-      '<div style="height:1px;background:#1e3d22;margin:8px 0;"></div>' +
-      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:4px;">📄 <strong>' + nombreCsv + '</strong></div>' +
-      '<div style="font-size:11px;color:#4a7a52;">CSV para el bot</div>' +
+      '<div style="font-size:11px;color:#4a7a52;margin-bottom:8px;letter-spacing:1px;">DESCARGADOS EN TU CELULAR:</div>' +
+      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:2px;">📊 ' + nombreXlsx + '</div>' +
+      '<div style="font-size:11px;color:#4a7a52;margin-bottom:8px;">Excel - abrilo en tu celular</div>' +
+      '<div style="height:1px;background:#1e3d22;margin:6px 0;"></div>' +
+      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:2px;">📄 ' + nombreCsv + '</div>' +
+      '<div style="font-size:11px;color:#4a7a52;">CSV - ya va pegado en el mail</div>' +
     '</div>' +
-    '<div class="modal-msg" style="margin-bottom:16px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ABRIR MAIL</strong> y adjuntá el archivo CSV desde Descargas.</div>' +
+    '<div class="modal-msg" style="margin-bottom:16px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ENVIAR MAIL</strong> - el CSV ya va pegado adentro, listo para que lo lea el bot.</div>' +
     '<div style="display:flex;flex-direction:column;gap:8px;">' +
-    '<a id="modalMailtoBtn" href="' + mailto + '" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ABRIR MAIL</a>' +
+    '<a id="modalMailtoBtn" href="' + mailto + '" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ENVIAR MAIL</a>' +
     '<button onclick="cerrarModalEnvio()" style="background:transparent;border:1px solid #1e3d22;border-radius:12px;padding:12px;color:#4a7a52;font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Cerrar</button>' +
     '</div></div>';
   modal.classList.add('visible');
@@ -1488,7 +1488,7 @@ function confirmarLimpiar() {
   document.getElementById('manualInput').value = '';
   document.getElementById('btnEnviar').disabled = true;
   limpiarLocal();
-  actualizarBanner('saved', 'Lista limpia — sin datos guardados');
+  actualizarBanner('saved', 'Lista limpia - sin datos guardados');
   showToast('🗑 Todo borrado', 'info');
 }
 
@@ -1612,7 +1612,7 @@ function actualizarBanner(tipo, msg) {
     msgEl.textContent  = msg || '✓ Guardado automáticamente';
     timeEl.textContent = `${hh}:${min}:${ss}`;
   } else if (tipo === 'offline') {
-    msgEl.textContent  = '⚠ Sin conexión — datos guardados localmente';
+    msgEl.textContent  = '⚠ Sin conexión - datos guardados localmente';
     timeEl.textContent = 'Enviá cuando tengas señal';
   } else if (tipo === 'online') {
     msgEl.textContent  = '● Conexión restaurada';
