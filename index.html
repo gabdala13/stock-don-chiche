@@ -12,7 +12,8 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script></script>
 
 
 <style>
@@ -1259,16 +1260,41 @@ function updateCount() {
   document.getElementById('totalCount').textContent = items.length;
 }
 
-// ── GENERAR CSV ──
+// ── GENERAR EXCEL ──
+function generarExcel() {
+  // Datos con encabezado exacto que necesita el bot
+  const data = [
+    ['Marca temporal', 'Código de Barras', 'Unidades', 'Sector']
+  ];
+  items.forEach(item => {
+    data.push([item.ts, item.barcode, item.units, item.sector]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Ancho de columnas
+  ws['!cols'] = [
+    { wch: 22 }, // Marca temporal
+    { wch: 18 }, // Código de Barras
+    { wch: 10 }, // Unidades
+    { wch: 12 }, // Sector
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Stock');
+  return wb;
+}
+
+// ── GENERAR CSV (para el bot) ──
 function generarCSV() {
   const header = 'Marca temporal,Código de Barras,Unidades,Sector';
   const rows   = items.map(item =>
-    `${item.ts},${item.barcode},${item.units},${item.sector}`
+    item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector
   );
   return [header, ...rows].join('\n');
 }
 
-// ── ENVIAR CSV ──
+// ── ENVIAR ──
 async function enviarCSV() {
   if (!items.length) { showToast('No hay datos para enviar', 'error'); return; }
 
@@ -1278,30 +1304,32 @@ async function enviarCSV() {
   if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
   if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
 
-  const csv   = generarCSV();
-  const now   = new Date();
   const partes = fecha.split('-');
   const yyyy = partes[0], mm = partes[1], dd = partes[2];
   const fechaLegible = dd + '/' + mm + '/' + yyyy;
   const superSlug = supermercado.replace(/ /g, '_');
   const repoSlug  = repositor.replace(/ /g, '_');
-  const nombre = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.csv';
+  const nombreXlsx = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.xlsx';
+  const nombreCsv  = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.csv';
 
   document.getElementById('loadingOverlay').classList.add('visible');
 
   try {
-    // PASO 1: Descargar CSV con BOM para que Excel lo abra bien
+    // ── Descargar EXCEL ──
+    const wb = generarExcel();
+    XLSX.writeFile(wb, nombreXlsx);
+
+    // ── Descargar CSV (para el bot) ──
+    const csv  = generarCSV();
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href     = url;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
+    a.href = url; a.download = nombreCsv;
+    document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    // PASO 2: Armar mailto con asunto y cuerpo prellenado
+    // ── Armar mailto ──
     const asunto = encodeURIComponent(
       'Stock ' + supermercado + ' - ' + fechaLegible + ' - Turno ' + turno + ' - ' + repositor
     );
@@ -1311,14 +1339,14 @@ async function enviarCSV() {
       'Fecha: ' + fechaLegible + '\n' +
       'Turno: ' + turno + '\n' +
       'Total items: ' + items.length + '\n\n' +
-      '--- CONTENIDO CSV ---\n' +
-      csv
+      'Adjuntar el archivo: ' + nombreCsv + '\n' +
+      '(guardado en Descargas del celular)'
     );
     const mailto = 'mailto:gabdala1713@gmail.com?subject=' + asunto + '&body=' + cuerpo;
 
     document.getElementById('loadingOverlay').classList.remove('visible');
     limpiarLocal();
-    showModalEnvio(nombre, mailto);
+    showModalEnvio(nombreCsv, nombreXlsx, mailto);
 
   } catch(err) {
     document.getElementById('loadingOverlay').classList.remove('visible');
@@ -1328,25 +1356,30 @@ async function enviarCSV() {
 }
 
 // ── MODAL DE ENVÍO ──
-function showModalEnvio(nombre, mailto) {
+function showModalEnvio(nombreCsv, nombreXlsx, mailto) {
   let modal = document.getElementById('modalEnvio');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'modalEnvio';
     modal.className = 'modal-overlay';
-    modal.innerHTML = '<div class="modal-box" style="border-color:#039a11;">' +
-      '<div class="modal-icon">✅</div>' +
-      '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">CSV DESCARGADO</div>' +
-      '<div class="modal-msg" style="margin-bottom:8px;">El archivo <strong style="color:#e8f5e9" id="modalNombreArchivo"></strong> se guardó en Descargas.</div>' +
-      '<div class="modal-msg" style="margin-bottom:20px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ABRIR MAIL</strong>. Se abre tu correo con el asunto ya cargado y el CSV en el cuerpo. Tambien podés adjuntar el archivo desde Descargas.</div>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-      '<a id="modalMailtoBtn" href="#" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ABRIR MAIL</a>' +
-      '<button onclick="cerrarModalEnvio()" style="background:transparent;border:1px solid #1e3d22;border-radius:12px;padding:12px;color:#4a7a52;font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Cerrar</button>' +
-      '</div></div>';
     document.body.appendChild(modal);
   }
-  document.getElementById('modalNombreArchivo').textContent = nombre;
-  document.getElementById('modalMailtoBtn').href = mailto;
+  modal.innerHTML = '<div class="modal-box" style="border-color:#039a11;">' +
+    '<div class="modal-icon">✅</div>' +
+    '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">ARCHIVOS LISTOS</div>' +
+    '<div style="background:#1a2e1d;border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;">' +
+      '<div style="font-size:12px;color:#4a7a52;margin-bottom:6px;letter-spacing:1px;">DESCARGADOS EN TU CELULAR:</div>' +
+      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:4px;">📊 <strong>' + nombreXlsx + '</strong></div>' +
+      '<div style="font-size:11px;color:#4a7a52;">Excel listo para abrir</div>' +
+      '<div style="height:1px;background:#1e3d22;margin:8px 0;"></div>' +
+      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:4px;">📄 <strong>' + nombreCsv + '</strong></div>' +
+      '<div style="font-size:11px;color:#4a7a52;">CSV para el bot</div>' +
+    '</div>' +
+    '<div class="modal-msg" style="margin-bottom:16px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ABRIR MAIL</strong> y adjuntá el archivo CSV desde Descargas.</div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;">' +
+    '<a id="modalMailtoBtn" href="' + mailto + '" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ABRIR MAIL</a>' +
+    '<button onclick="cerrarModalEnvio()" style="background:transparent;border:1px solid #1e3d22;border-radius:12px;padding:12px;color:#4a7a52;font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Cerrar</button>' +
+    '</div></div>';
   modal.classList.add('visible');
 }
 
@@ -1354,6 +1387,7 @@ function cerrarModalEnvio() {
   const modal = document.getElementById('modalEnvio');
   if (modal) modal.classList.remove('visible');
 }
+
 
 
 
