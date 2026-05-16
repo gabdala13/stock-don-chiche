@@ -910,38 +910,26 @@ async function toggleScan() {
 
 async function startScan() {
   try {
-    // Solo formatos de supermercado — mucho más rápido
+    // Formatos de supermercado solamente
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.EAN_13,
       ZXing.BarcodeFormat.EAN_8,
       ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
       ZXing.BarcodeFormat.UPC_A,
       ZXing.BarcodeFormat.UPC_E,
     ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, false); // más rápido sin try_harder
-    
-    codeReader = new ZXing.BrowserMultiFormatReader(hints, {
-      delayBetweenScanAttempts: 80,   // ms entre intentos (default 500)
-      delayBetweenScanSuccess: 500,   // ms tras éxito
-    });
 
-    // Pedir permiso de cámara
+    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+
+    // Pedir permiso y obtener cámara trasera
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1280 },
-        height: { ideal: 720 },
-        focusMode: { ideal: 'continuous' },   // autofocus continuo
-      }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
     stream.getTracks().forEach(t => t.stop());
 
-    // Obtener cámara trasera
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter(d => d.kind === 'videoinput');
-
     if (!videoDevices.length) { showToast('No se encontró cámara', 'error'); return; }
 
     const back = videoDevices.find(d => /back|rear|trasera|environment/i.test(d.label));
@@ -956,20 +944,9 @@ async function startScan() {
       if (result) {
         setBarcode(result.getText());
         stopScan();
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]); // vibración doble al leer
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
       }
     });
-
-    // Forzar autofocus en el video cada 3 segundos
-    setTimeout(() => {
-      const videoEl = document.getElementById('video');
-      if (videoEl && videoEl.srcObject) {
-        const track = videoEl.srcObject.getVideoTracks()[0];
-        if (track && track.applyConstraints) {
-          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-        }
-      }
-    }, 1000);
 
   } catch(e) {
     showToast('Error cámara: ' + e.message, 'error');
