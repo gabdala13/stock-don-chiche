@@ -12,7 +12,8 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script></script>
 
 
 <style>
@@ -854,6 +855,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── CONFIG EMAILJS ──
+const EMAILJS_PUBLIC_KEY  = 'Eug8XBm4t5p4s3tdn';
+const EMAILJS_SERVICE_ID  = 'service_zigtv5m';
+const EMAILJS_TEMPLATE_ID = 'template_rjtnvei';
+
 
 
 // ── ESTADO ──
@@ -1259,95 +1265,7 @@ function updateCount() {
   document.getElementById('totalCount').textContent = items.length;
 }
 
-// ── GENERADOR XLSX PURO (sin librerías) ──
-// Genera un archivo .xlsx válido usando el formato XML de Office Open XML
-function generarExcelBlob() {
-  const filas = [
-    ['Marca temporal', 'Código de Barras', 'Unidades', 'Sector']
-  ];
-  items.forEach(item => {
-    filas.push([item.ts, String(item.barcode), item.units, item.sector]);
-  });
 
-  // Construir XML de la hoja
-  let sheetData = '';
-  filas.forEach((fila, r) => {
-    let rowXml = '<row r="' + (r+1) + '">';
-    fila.forEach((celda, c) => {
-      const col = String.fromCharCode(65 + c); // A, B, C, D
-      const ref = col + (r+1);
-      const esNumero = typeof celda === 'number';
-      if (esNumero) {
-        rowXml += '<c r="' + ref + '" t="n"><v>' + celda + '</v></c>';
-      } else {
-        const txt = String(celda)
-          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-          .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        rowXml += '<c r="' + ref + '" t="inlineStr"><is><t>' + txt + '</t></is></c>';
-      }
-    });
-    rowXml += '</row>';
-    sheetData += rowXml;
-  });
-
-  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<sheetData>' + sheetData + '</sheetData></worksheet>';
-
-  const workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
-    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-    '<sheets><sheet name="Stock" sheetId="1" r:id="rId1"/></sheets></workbook>';
-
-  const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-    '</Relationships>';
-
-  const workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
-    '</Relationships>';
-
-  const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-    '<Default Extension="xml" ContentType="application/xml"/>' +
-    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-    '</Types>';
-
-  // Construir ZIP en memoria usando JSZip-like manual
-  // Usamos el truco del data URI con el formato SpreadsheetML (XML) que Excel abre directo
-  // Es más compatible que ZIP manual
-  const xlsContent = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>' +
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
-    'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
-    '<Worksheet ss:Name="Stock"><Table>';
-
-  let xlsRows = '';
-  filas.forEach((fila, r) => {
-    xlsRows += '<Row>';
-    fila.forEach((celda, c) => {
-      const esNumero = typeof celda === 'number';
-      if (esNumero) {
-        xlsRows += '<Cell><Data ss:Type="Number">' + celda + '</Data></Cell>';
-      } else {
-        const txt = String(celda)
-          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-          .replace(/>/g,'&gt;');
-        xlsRows += '<Cell><Data ss:Type="String">' + txt + '</Data></Cell>';
-      }
-    });
-    xlsRows += '</Row>';
-  });
-
-  const xlsFinal = xlsContent + xlsRows + '</Table></Worksheet></Workbook>';
-
-  return new Blob([xlsFinal], {
-    type: 'application/vnd.ms-excel;charset=utf-8'
-  });
-}
 
 
 // ── GENERAR CSV (para el bot) ──
@@ -1364,10 +1282,10 @@ async function enviarCSV() {
   if (!items.length) { showToast('No hay datos para enviar', 'error'); return; }
 
   const { repositor, fecha, turno } = getDatosConteo();
-  if (!repositor)    { showToast('⚠ Ingresá tu nombre', 'error'); return; }
-  if (!fecha)        { showToast('⚠ Completá la fecha', 'error'); return; }
-  if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
-  if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
+  if (!repositor)    { showToast('Ingresa tu nombre', 'error'); return; }
+  if (!fecha)        { showToast('Completa la fecha', 'error'); return; }
+  if (!turno)        { showToast('Selecciona el turno', 'error'); return; }
+  if (!supermercado) { showToast('Selecciona un local', 'error'); return; }
 
   const csv    = generarCSV();
   const partes = fecha.split('-');
@@ -1375,49 +1293,37 @@ async function enviarCSV() {
   const fechaLegible = dd + '/' + mm + '/' + yyyy;
   const superSlug    = supermercado.replace(/ /g, '_');
   const repoSlug     = repositor.replace(/ /g, '_');
-  const nombreBase   = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno;
-  const nombreXlsx   = nombreBase + '.xlsx';
-  const nombreCsv    = nombreBase + '.csv';
+  const nombreCsv    = 'stock_' + superSlug + '_' + repoSlug + '_' + yyyy + mm + dd + '_' + turno + '.csv';
 
   document.getElementById('loadingOverlay').classList.add('visible');
 
   try {
-    // 1. Descargar Excel
-    const xlsBlob = generarExcelBlob();
-    const xlsUrl  = URL.createObjectURL(xlsBlob);
-    const xlsA    = document.createElement('a');
-    xlsA.href = xlsUrl; xlsA.download = nombreXlsx;
-    document.body.appendChild(xlsA); xlsA.click();
-    document.body.removeChild(xlsA);
-    setTimeout(() => URL.revokeObjectURL(xlsUrl), 1000);
-
-    // 2. Descargar CSV
+    // 1. Descargar CSV en el celular
     const csvBlob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const csvUrl  = URL.createObjectURL(csvBlob);
     const csvA    = document.createElement('a');
-    csvA.href = csvUrl; csvA.download = nombreCsv;
-    document.body.appendChild(csvA); csvA.click();
+    csvA.href = csvUrl;
+    csvA.download = nombreCsv;
+    document.body.appendChild(csvA);
+    csvA.click();
     document.body.removeChild(csvA);
-    setTimeout(() => URL.revokeObjectURL(csvUrl), 1000);
+    setTimeout(function() { URL.revokeObjectURL(csvUrl); }, 1000);
 
-    // 3. Abrir mail con CSV pegado en el cuerpo (el bot lo lee de acá)
+    // 2. Armar mailto con CSV en el cuerpo
     const asunto = encodeURIComponent(
       'Stock ' + supermercado + ' - ' + fechaLegible + ' - Turno ' + turno + ' - ' + repositor
     );
     const cuerpo = encodeURIComponent(
-      'Repositor: ' + repositor + '\n' +
-      'Local: ' + supermercado + '\n' +
-      'Fecha: ' + fechaLegible + '\n' +
-      'Turno: ' + turno + '\n' +
-      'Total items: ' + items.length + '\n\n' +
-      '--- CONTENIDO CSV ---\n' +
-      csv
+      'Marca temporal,Codigo de Barras,Unidades,Sector\n' +
+      items.map(function(item) {
+        return item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector;
+      }).join('\n')
     );
     const mailto = 'mailto:gabdala1713@gmail.com?subject=' + asunto + '&body=' + cuerpo;
 
     document.getElementById('loadingOverlay').classList.remove('visible');
     limpiarLocal();
-    showModalEnvio(nombreCsv, nombreXlsx, mailto);
+    showModalEnvio(nombreCsv, mailto);
 
   } catch(err) {
     document.getElementById('loadingOverlay').classList.remove('visible');
@@ -1426,8 +1332,8 @@ async function enviarCSV() {
   }
 }
 
-// ── MODAL DE ENVÍO ──
-function showModalEnvio(nombreCsv, nombreXlsx, mailto) {
+// ── MODAL DE ENVIO ──
+function showModalEnvio(nombreCsv, mailto) {
   let modal = document.getElementById('modalEnvio');
   if (!modal) {
     modal = document.createElement('div');
@@ -1436,19 +1342,17 @@ function showModalEnvio(nombreCsv, nombreXlsx, mailto) {
     document.body.appendChild(modal);
   }
   modal.innerHTML = '<div class="modal-box" style="border-color:#039a11;">' +
-    '<div class="modal-icon">✅</div>' +
-    '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">ARCHIVOS LISTOS</div>' +
+    '<div class="modal-icon">&#x2705;</div>' +
+    '<div class="modal-title" style="color:#ffcc00;font-size:18px;margin-bottom:10px;">LISTO PARA ENVIAR</div>' +
     '<div style="background:#1a2e1d;border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;">' +
-      '<div style="font-size:11px;color:#4a7a52;margin-bottom:8px;letter-spacing:1px;">DESCARGADOS EN TU CELULAR:</div>' +
-      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:2px;">📊 ' + nombreXlsx + '</div>' +
-      '<div style="font-size:11px;color:#4a7a52;margin-bottom:8px;">Excel - abrilo en tu celular</div>' +
-      '<div style="height:1px;background:#1e3d22;margin:6px 0;"></div>' +
-      '<div style="font-size:13px;color:#e8f5e9;margin-bottom:2px;">📄 ' + nombreCsv + '</div>' +
-      '<div style="font-size:11px;color:#4a7a52;">CSV - ya va pegado en el mail</div>' +
+      '<div style="font-size:11px;color:#4a7a52;margin-bottom:6px;letter-spacing:1px;">DESCARGADO EN TU CELU:</div>' +
+      '<div style="font-size:13px;color:#e8f5e9;">&#x1F4C4; ' + nombreCsv + '</div>' +
     '</div>' +
-    '<div class="modal-msg" style="margin-bottom:16px;font-size:12px;line-height:1.6;">Tocá <strong style="color:#ffcc00">ENVIAR MAIL</strong> - el CSV ya va pegado adentro, listo para que lo lea el bot.</div>' +
+    '<div style="font-size:13px;color:#4a7a52;text-align:center;margin-bottom:16px;line-height:1.6;">' +
+      'Toca <strong style="color:#ffcc00">ENVIAR MAIL</strong><br>El CSV ya va en el cuerpo del mail.' +
+    '</div>' +
     '<div style="display:flex;flex-direction:column;gap:8px;">' +
-    '<a id="modalMailtoBtn" href="' + mailto + '" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:14px;font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:2px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">📧 ENVIAR MAIL</a>' +
+    '<a href="' + mailto + '" style="display:block;text-align:center;background:linear-gradient(135deg,#039a11,#026b0c);color:#fff;border-radius:12px;padding:16px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:3px;text-decoration:none;box-shadow:0 4px 16px rgba(3,154,17,0.3);">&#x1F4E7; ENVIAR MAIL</a>' +
     '<button onclick="cerrarModalEnvio()" style="background:transparent;border:1px solid #1e3d22;border-radius:12px;padding:12px;color:#4a7a52;font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Cerrar</button>' +
     '</div></div>';
   modal.classList.add('visible');
@@ -1458,6 +1362,9 @@ function cerrarModalEnvio() {
   const modal = document.getElementById('modalEnvio');
   if (modal) modal.classList.remove('visible');
 }
+
+
+
 
 
 
