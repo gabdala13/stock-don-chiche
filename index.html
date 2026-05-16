@@ -910,27 +910,41 @@ async function toggleScan() {
 
 async function startScan() {
   try {
-    codeReader = new ZXing.BrowserMultiFormatReader();
-
-    // Pedir permiso de cámara primero
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
+    // Solo formatos de supermercado — mucho más rápido
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, false); // más rápido sin try_harder
+    
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 80,   // ms entre intentos (default 500)
+      delayBetweenScanSuccess: 500,   // ms tras éxito
     });
-    stream.getTracks().forEach(t => t.stop()); // solo para pedir permiso
 
-    // Obtener dispositivos
+    // Pedir permiso de cámara
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 },
+        focusMode: { ideal: 'continuous' },   // autofocus continuo
+      }
+    });
+    stream.getTracks().forEach(t => t.stop());
+
+    // Obtener cámara trasera
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
-    if (!videoDevices.length) {
-      showToast('No se encontró cámara', 'error');
-      return;
-    }
+    if (!videoDevices.length) { showToast('No se encontró cámara', 'error'); return; }
 
-    // Preferir cámara trasera
-    const back = videoDevices.find(d =>
-      /back|rear|trasera|environment/i.test(d.label)
-    );
+    const back = videoDevices.find(d => /back|rear|trasera|environment/i.test(d.label));
     const deviceId = back ? back.deviceId : videoDevices[videoDevices.length - 1].deviceId;
 
     scanning = true;
@@ -942,9 +956,21 @@ async function startScan() {
       if (result) {
         setBarcode(result.getText());
         stopScan();
-        if (navigator.vibrate) navigator.vibrate(80);
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]); // vibración doble al leer
       }
     });
+
+    // Forzar autofocus en el video cada 3 segundos
+    setTimeout(() => {
+      const videoEl = document.getElementById('video');
+      if (videoEl && videoEl.srcObject) {
+        const track = videoEl.srcObject.getVideoTracks()[0];
+        if (track && track.applyConstraints) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        }
+      }
+    }, 1000);
+
   } catch(e) {
     showToast('Error cámara: ' + e.message, 'error');
     scanning = false;
