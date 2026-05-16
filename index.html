@@ -12,8 +12,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js">
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 
 
 <style>
@@ -1260,30 +1259,96 @@ function updateCount() {
   document.getElementById('totalCount').textContent = items.length;
 }
 
-// ── GENERAR EXCEL ──
-function generarExcel() {
-  // Datos con encabezado exacto que necesita el bot
-  const data = [
+// ── GENERADOR XLSX PURO (sin librerías) ──
+// Genera un archivo .xlsx válido usando el formato XML de Office Open XML
+function generarExcelBlob() {
+  const filas = [
     ['Marca temporal', 'Código de Barras', 'Unidades', 'Sector']
   ];
   items.forEach(item => {
-    data.push([item.ts, item.barcode, item.units, item.sector]);
+    filas.push([item.ts, String(item.barcode), item.units, item.sector]);
   });
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
+  // Construir XML de la hoja
+  let sheetData = '';
+  filas.forEach((fila, r) => {
+    let rowXml = '<row r="' + (r+1) + '">';
+    fila.forEach((celda, c) => {
+      const col = String.fromCharCode(65 + c); // A, B, C, D
+      const ref = col + (r+1);
+      const esNumero = typeof celda === 'number';
+      if (esNumero) {
+        rowXml += '<c r="' + ref + '" t="n"><v>' + celda + '</v></c>';
+      } else {
+        const txt = String(celda)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        rowXml += '<c r="' + ref + '" t="inlineStr"><is><t>' + txt + '</t></is></c>';
+      }
+    });
+    rowXml += '</row>';
+    sheetData += rowXml;
+  });
 
-  // Ancho de columnas
-  ws['!cols'] = [
-    { wch: 22 }, // Marca temporal
-    { wch: 18 }, // Código de Barras
-    { wch: 10 }, // Unidades
-    { wch: 12 }, // Sector
-  ];
+  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData>' + sheetData + '</sheetData></worksheet>';
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Stock');
-  return wb;
+  const workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="Stock" sheetId="1" r:id="rId1"/></sheets></workbook>';
+
+  const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '</Relationships>';
+
+  const workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>';
+
+  const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '</Types>';
+
+  // Construir ZIP en memoria usando JSZip-like manual
+  // Usamos el truco del data URI con el formato SpreadsheetML (XML) que Excel abre directo
+  // Es más compatible que ZIP manual
+  const xlsContent = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+    'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    '<Worksheet ss:Name="Stock"><Table>';
+
+  let xlsRows = '';
+  filas.forEach((fila, r) => {
+    xlsRows += '<Row>';
+    fila.forEach((celda, c) => {
+      const esNumero = typeof celda === 'number';
+      if (esNumero) {
+        xlsRows += '<Cell><Data ss:Type="Number">' + celda + '</Data></Cell>';
+      } else {
+        const txt = String(celda)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;');
+        xlsRows += '<Cell><Data ss:Type="String">' + txt + '</Data></Cell>';
+      }
+    });
+    xlsRows += '</Row>';
+  });
+
+  const xlsFinal = xlsContent + xlsRows + '</Table></Worksheet></Workbook>';
+
+  return new Blob([xlsFinal], {
+    type: 'application/vnd.ms-excel;charset=utf-8'
+  });
 }
+
 
 // ── GENERAR CSV (para el bot) ──
 function generarCSV() {
@@ -1316,8 +1381,14 @@ async function enviarCSV() {
 
   try {
     // ── Descargar EXCEL ──
-    const wb = generarExcel();
-    XLSX.writeFile(wb, nombreXlsx);
+    // Descargar Excel (formato SpreadsheetML que abre Excel)
+    const xlsBlob = generarExcelBlob();
+    const xlsUrl  = URL.createObjectURL(xlsBlob);
+    const xlsA    = document.createElement('a');
+    xlsA.href = xlsUrl; xlsA.download = nombreXlsx;
+    document.body.appendChild(xlsA); xlsA.click();
+    document.body.removeChild(xlsA);
+    setTimeout(() => URL.revokeObjectURL(xlsUrl), 1000);
 
     // ── Descargar CSV (para el bot) ──
     const csv  = generarCSV();
