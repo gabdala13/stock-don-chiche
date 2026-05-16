@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f2027">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Don Chiche Stock">
+<title>Don Chiche · Stock</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --surface: #111827;
+    --surface2: #1a2535;
+    --border: #1f3148;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --warn: #ff6b35;
+    --text: #e8f4fd;
+    --muted: #5a7a9a;
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,255,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(0,255,136,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,15,26,0.94);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo-main { font-family: var(--font-display); font-size: 26px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .logo-sub  { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500; }
+
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .count-num    { font-family: var(--font-display); font-size: 24px; color: var(--accent2); line-height: 1; }
+  .count-label  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── MAIN ── */
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 14px 14px 130px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent);
+  }
+  .card-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  /* ── INPUTS TEXTO ── */
+  .input-field {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .input-field:focus { border-color: var(--accent); }
+  .input-field::placeholder { color: var(--muted); font-size: 13px; }
+  .input-field[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6);
+  }
+
+  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── SUPERMERCADO ── */
+  .super-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .super-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-body);
+  }
+  .super-btn .icon { font-size: 22px; }
+  .super-btn .name { font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; color: var(--text); }
+  .super-btn .addr { font-size: 10px; text-align: center; color: var(--muted); }
+  .super-btn.active {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.08);
+    box-shadow: 0 0 18px rgba(0,212,255,0.15);
+  }
+  .super-btn.active .name { color: var(--accent); }
+
+  /* ── SECTOR ── */
+  .sector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sector-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sector-btn.active {
+    border-color: var(--accent2);
+    background: rgba(0,255,136,0.08);
+    color: var(--accent2);
+    box-shadow: 0 0 18px rgba(0,255,136,0.15);
+  }
+
+  /* ── SCANNER ── */
+  .scan-area {
+    display: none;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4/3;
+  }
+  .scan-area.visible { display: block; }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+
+  .scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .scan-frame {
+    width: 65%;
+    aspect-ratio: 3/1;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.5);
+  }
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: var(--accent); top: 0;
+    box-shadow: 0 0 8px var(--accent);
+    animation: scanline 2s ease-in-out infinite;
+  }
+  @keyframes scanline { 0%{top:0} 50%{top:calc(100% - 2px)} 100%{top:0} }
+
+  .scan-corner { position: absolute; width: 16px; height: 16px; border-color: var(--accent2); border-style: solid; border-width: 0; }
+  .scan-corner.tl { top:-2px; left:-2px; border-top-width:3px; border-left-width:3px; border-radius:3px 0 0 0; }
+  .scan-corner.tr { top:-2px; right:-2px; border-top-width:3px; border-right-width:3px; border-radius:0 3px 0 0; }
+  .scan-corner.bl { bottom:-2px; left:-2px; border-bottom-width:3px; border-left-width:3px; border-radius:0 0 0 3px; }
+  .scan-corner.br { bottom:-2px; right:-2px; border-bottom-width:3px; border-right-width:3px; border-radius:0 0 3px 0; }
+
+  .barcode-display {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .barcode-value {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    min-height: 46px;
+    display: flex; align-items: center;
+    word-break: break-all;
+  }
+  .barcode-value.empty { color: var(--muted); font-size: 12px; font-family: var(--font-body); }
+
+  .btn-scan {
+    background: var(--accent);
+    color: var(--bg);
+    border: none; border-radius: 10px;
+    width: 46px; height: 46px;
+    font-size: 20px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .btn-scan:active { transform: scale(0.93); }
+  .btn-scan.scanning { background: var(--warn); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,107,53,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(255,107,53,0); }
+  }
+
+  .barcode-manual-row { display: flex; gap: 8px; margin-top: 8px; }
+  .input-manual {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .input-manual:focus { border-color: var(--accent); }
+  .input-manual::placeholder { color: var(--muted); font-family: var(--font-body); font-size: 12px; }
+
+  .btn-set-manual {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--accent);
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .btn-set-manual:active { background: rgba(0,212,255,0.1); }
+
+  /* ── CANTIDAD ── */
+  .cantidad-display { text-align: center; margin-bottom: 14px; }
+  .cantidad-num {
+    font-family: var(--font-display);
+    font-size: 68px; color: var(--text); line-height: 1; letter-spacing: 2px;
+  }
+  .cantidad-num.editing { color: var(--accent); }
+  .cantidad-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+
+  .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .num-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px;
+    font-family: var(--font-display);
+    font-size: 24px; color: var(--text);
+    cursor: pointer; transition: all 0.15s;
+    text-align: center; letter-spacing: 1px;
+    user-select: none; -webkit-user-select: none;
+  }
+  .num-btn:active { background: rgba(0,212,255,0.12); border-color: var(--accent); transform: scale(0.96); }
+  .num-btn.del  { font-size: 18px; color: var(--warn); border-color: rgba(255,107,53,0.2); }
+  .num-btn.clear { font-size: 12px; color: var(--muted); font-family: var(--font-body); font-weight: 600; letter-spacing: 1px; }
+
+  /* ── BTN AGREGAR ── */
+  .btn-guardar {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent2), #00cc6e);
+    border: none; border-radius: 14px;
+    padding: 17px;
+    font-family: var(--font-display); font-size: 20px; letter-spacing: 3px;
+    color: #0a0f1a; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 24px rgba(0,255,136,0.2);
+  }
+  .btn-guardar:active { transform: scale(0.98); box-shadow: none; }
+  .btn-guardar:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* ── LISTA ITEMS ── */
+  .items-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 320px; overflow-y: auto;
+  }
+  .empty-state { text-align: center; color: var(--muted); font-size: 13px; padding: 24px; line-height: 1.6; }
+
+  .item-row {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+  .item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .item-sector-badge {
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; padding: 3px 7px;
+    border-radius: 6px; flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .item-sector-badge.gondola  { background: rgba(0,212,255,0.12); color: var(--accent);  border: 1px solid rgba(0,212,255,0.2); }
+  .item-sector-badge.deposito { background: rgba(0,255,136,0.12); color: var(--accent2); border: 1px solid rgba(0,255,136,0.2); }
+
+  .item-barcode {
+    font-family: var(--font-mono); font-size: 13px; color: var(--text);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .item-units {
+    font-family: var(--font-display); font-size: 22px; color: var(--text);
+    flex-shrink: 0; min-width: 40px; text-align: right;
+  }
+
+  .item-actions {
+    display: flex;
+    border-top: 1px solid var(--border);
+  }
+
+  .item-action-btn {
+    flex: 1;
+    background: none; border: none;
+    padding: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+    font-family: var(--font-body);
+    letter-spacing: 0.5px;
+  }
+  .item-action-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  .item-action-btn.edit-btn  { color: var(--accent);  }
+  .item-action-btn.edit-btn:active  { background: rgba(0,212,255,0.08); }
+  .item-action-btn.del-btn   { color: var(--warn);   }
+  .item-action-btn.del-btn:active   { background: rgba(255,107,53,0.08); }
+
+  /* ── EDIT INLINE ── */
+  .item-edit-form {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    gap: 8px;
+    flex-direction: column;
+    background: rgba(0,212,255,0.04);
+  }
+  .item-edit-form.open { display: flex; }
+
+  .edit-row { display: flex; gap: 8px; align-items: center; }
+
+  .edit-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--accent);
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .edit-select {
+    flex: 1;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .edit-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .edit-save-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none; border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: var(--font-body);
+    letter-spacing: 1px; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .edit-save-btn:active { transform: scale(0.95); }
+
+  /* ── BOTONES FINALES ── */
+  .btn-enviar {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), #0099bb);
+    border: none; border-radius: 14px;
+    padding: 16px;
+    font-family: var(--font-display); font-size: 20px; letter-spacing: 3px;
+    color: #0a0f1a; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 24px rgba(0,212,255,0.2);
+  }
+  .btn-enviar:active { transform: scale(0.98); }
+  .btn-enviar:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .btn-limpiar {
+    width: 100%;
+    background: transparent;
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 14px;
+    padding: 13px;
+    font-family: var(--font-body); font-size: 13px; font-weight: 600;
+    letter-spacing: 1px; color: var(--warn);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-limpiar:active { background: rgba(255,107,53,0.08); }
+
+  .actions-row { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 14px; font-weight: 500;
+    z-index: 999; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    max-width: 88vw; text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent2); color: var(--accent2); }
+  .toast.error   { border-color: var(--warn);    color: var(--warn); }
+  .toast.info    { border-color: var(--accent);   color: var(--accent); }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,15,26,0.88);
+    backdrop-filter: blur(8px);
+    z-index: 200; display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+  }
+  .loading-overlay.visible { display: flex; }
+  .spinner {
+    width: 46px; height: 46px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: var(--font-display); font-size: 18px; letter-spacing: 2px; color: var(--accent); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo-main">DON CHICHE</div>
+    <div class="logo-sub">Conteo de Stock · Chepes</div>
+  </div>
+  <div class="header-right">
+    <span class="count-num" id="totalCount">0</span>
+    <span class="count-label">registros</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── DATOS DEL CONTEO ── -->
+  <div class="card">
+    <div class="card-label">👤 Datos del conteo</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input class="input-field" id="inputRepositor" type="text" placeholder="Nombre del repositor..." autocomplete="off" spellcheck="false">
+      <div class="input-row">
+        <input class="input-field" id="inputFecha" type="date">
+        <select class="input-field" id="inputTurno" style="appearance:none;-webkit-appearance:none;cursor:pointer;">
+          <option value="" disabled selected>Turno...</option>
+          <option value="Mañana">☀️ Mañana</option>
+          <option value="Tarde">🌆 Tarde</option>
+          <option value="Noche">🌙 Noche</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUPERMERCADO ── -->
+  <div class="card">
+    <div class="card-label">📍 Local</div>
+    <div class="super-grid">
+      <button class="super-btn" id="superBtn1" onclick="selectSuper(1)">
+        <span class="icon">🏪</span>
+        <span class="name">Don Chiche<br>Central</span>
+        <span class="addr">Chepes</span>
+      </button>
+      <button class="super-btn" id="superBtn2" onclick="selectSuper(2)">
+        <span class="icon">🏬</span>
+        <span class="name">Don Chiche<br>Sucursal</span>
+        <span class="addr">Chepes</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── SECTOR ── -->
+  <div class="card">
+    <div class="card-label">📦 Sector</div>
+    <div class="sector-grid">
+      <button class="sector-btn" id="sectorGondola"  onclick="selectSector('Góndola')">
+        🛒 Góndola
+      </button>
+      <button class="sector-btn" id="sectorDeposito" onclick="selectSector('Depósito')">
+        🏭 Depósito
+      </button>
+    </div>
+  </div>
+
+  <!-- ── SCANNER ── -->
+  <div class="card">
+    <div class="card-label">📷 Código de barras</div>
+    <div class="barcode-display">
+      <div class="barcode-value empty" id="barcodeDisplay">Sin código escaneado</div>
+      <button class="btn-scan" id="scanBtn" onclick="toggleScan()">📷</button>
+    </div>
+    <div class="scan-area" id="scanArea">
+      <video id="video" playsinline></video>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-line"></div>
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+        </div>
+      </div>
+    </div>
+    <div class="barcode-manual-row">
+      <input class="input-manual" id="manualInput" type="tel" placeholder="Ingresar código manual..." inputmode="numeric">
+      <button class="btn-set-manual" onclick="setManualBarcode()">USAR</button>
+    </div>
+  </div>
+
+  <!-- ── CANTIDAD ── -->
+  <div class="card">
+    <div class="card-label">🔢 Cantidad</div>
+    <div class="cantidad-display">
+      <div class="cantidad-num" id="cantidadDisplay">0</div>
+      <div class="cantidad-label">unidades</div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="numPress('1')">1</button>
+      <button class="num-btn" onclick="numPress('2')">2</button>
+      <button class="num-btn" onclick="numPress('3')">3</button>
+      <button class="num-btn" onclick="numPress('4')">4</button>
+      <button class="num-btn" onclick="numPress('5')">5</button>
+      <button class="num-btn" onclick="numPress('6')">6</button>
+      <button class="num-btn" onclick="numPress('7')">7</button>
+      <button class="num-btn" onclick="numPress('8')">8</button>
+      <button class="num-btn" onclick="numPress('9')">9</button>
+      <button class="num-btn clear" onclick="clearNum()">BORRAR</button>
+      <button class="num-btn" onclick="numPress('0')">0</button>
+      <button class="num-btn del" onclick="delNum()">⌫</button>
+    </div>
+  </div>
+
+  <!-- ── BTN AGREGAR ── -->
+  <button class="btn-guardar" id="btnGuardar" onclick="guardarItem()">
+    ✚ AGREGAR AL CONTEO
+  </button>
+
+  <!-- ── LISTA ── -->
+  <div class="card">
+    <div class="card-label">📋 Conteo actual</div>
+    <div class="items-list" id="itemsList">
+      <div class="empty-state">No hay productos registrados.<br>Escaneá un código y agregalo.</div>
+    </div>
+  </div>
+
+  <!-- ── ACCIONES ── -->
+  <div class="actions-row">
+    <button class="btn-enviar" id="btnEnviar" onclick="enviarCSV()" disabled>
+      📧 ENVIAR CSV POR EMAIL
+    </button>
+    <button class="btn-limpiar" onclick="limpiarTodo()">
+      🗑 Limpiar todo y empezar de nuevo
+    </button>
+  </div>
+
+</main>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">ENVIANDO...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG EMAILJS ──
+const EMAILJS_PUBLIC_KEY  = 'Eug8XBm4t5p4s3tdn';
+const EMAILJS_SERVICE_ID  = 'service_zigtv5m';
+const EMAILJS_TEMPLATE_ID = 'template_rjtnvei';
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+// ── ESTADO ──
+let supermercado = null;
+let sector       = null;
+let barcode      = null;
+let cantidad     = '';
+let items        = [];
+let scanning     = false;
+let codeReader   = null;
+let editingIndex = null; // índice del ítem en edición
+
+// ── Setear fecha de hoy por defecto ──
+(function() {
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
+  const dd   = String(hoy.getDate()).padStart(2,'0');
+  document.getElementById('inputFecha').value = `${yyyy}-${mm}-${dd}`;
+})();
+
+// ── SELECCIONAR LOCAL ──
+function selectSuper(n) {
+  supermercado = n === 1 ? 'Don Chiche Central' : 'Don Chiche Sucursal';
+  document.getElementById('superBtn1').classList.toggle('active', n === 1);
+  document.getElementById('superBtn2').classList.toggle('active', n === 2);
+  showToast('Local: ' + supermercado, 'info');
+}
+
+// ── SELECCIONAR SECTOR ──
+function selectSector(s) {
+  sector = s;
+  document.getElementById('sectorGondola') .classList.toggle('active', s === 'Góndola');
+  document.getElementById('sectorDeposito').classList.toggle('active', s === 'Depósito');
+  showToast('Sector: ' + s, 'info');
+}
+
+// ── NUMPAD ──
+function numPress(d) {
+  if (cantidad.length >= 6) return;
+  cantidad += d;
+  updateCantidadDisplay();
+}
+function delNum()  { cantidad = cantidad.slice(0,-1); updateCantidadDisplay(); }
+function clearNum(){ cantidad = ''; updateCantidadDisplay(); }
+function updateCantidadDisplay() {
+  const el = document.getElementById('cantidadDisplay');
+  el.textContent = cantidad === '' ? '0' : cantidad;
+  el.classList.toggle('editing', cantidad !== '');
+}
+
+// ── SCANNER ──
+async function toggleScan() {
+  scanning ? stopScan() : await startScan();
+}
+
+async function startScan() {
+  try {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+
+    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+    if (!devices.length) { showToast('No se encontró cámara', 'error'); return; }
+
+    const back = devices.find(d =>
+      /back|rear|trasera|environment/i.test(d.label)
+    );
+    const deviceId = back ? back.deviceId : devices[devices.length-1].deviceId;
+
+    scanning = true;
+    document.getElementById('scanArea').classList.add('visible');
+    document.getElementById('scanBtn').classList.add('scanning');
+    document.getElementById('scanBtn').textContent = '⏹';
+
+    codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+      if (result) {
+        setBarcode(result.getText());
+        stopScan();
+        if (navigator.vibrate) navigator.vibrate(80);
+      }
+    });
+  } catch(e) {
+    showToast('Error cámara: ' + e.message, 'error');
+    scanning = false;
+  }
+}
+
+function stopScan() {
+  if (codeReader) { codeReader.reset(); codeReader = null; }
+  scanning = false;
+  document.getElementById('scanArea').classList.remove('visible');
+  document.getElementById('scanBtn').classList.remove('scanning');
+  document.getElementById('scanBtn').textContent = '📷';
+}
+
+function setBarcode(code) {
+  barcode = code.trim();
+  const el = document.getElementById('barcodeDisplay');
+  el.textContent = barcode;
+  el.classList.remove('empty');
+  document.getElementById('manualInput').value = '';
+  showToast('✓ ' + barcode, 'success');
+}
+
+function setManualBarcode() {
+  const val = document.getElementById('manualInput').value.trim();
+  if (!val) { showToast('Ingresá un código', 'error'); return; }
+  setBarcode(val);
+}
+
+// ── VALIDAR DATOS DEL CONTEO ──
+function getDatosConteo() {
+  const repositor = document.getElementById('inputRepositor').value.trim();
+  const fecha     = document.getElementById('inputFecha').value;
+  const turno     = document.getElementById('inputTurno').value;
+  return { repositor, fecha, turno };
+}
+
+// ── GUARDAR ÍTEM ──
+function guardarItem() {
+  const { repositor, fecha, turno } = getDatosConteo();
+  if (!repositor)    { showToast('⚠ Ingresá tu nombre', 'error'); return; }
+  if (!fecha)        { showToast('⚠ Seleccioná la fecha', 'error'); return; }
+  if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
+  if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
+  if (!sector)       { showToast('⚠ Seleccioná un sector', 'error'); return; }
+  if (!barcode)      { showToast('⚠ Escaneá o ingresá un código', 'error'); return; }
+  const units = parseInt(cantidad || '0');
+  if (!units || units <= 0) { showToast('⚠ Ingresá una cantidad mayor a 0', 'error'); return; }
+
+  const ts = formatTimestamp(new Date());
+  items.push({ ts, barcode, units, sector });
+  renderItems();
+  updateCount();
+
+  // Reset campos para próximo ítem
+  barcode  = null;
+  cantidad = '';
+  updateCantidadDisplay();
+  const el = document.getElementById('barcodeDisplay');
+  el.textContent = 'Sin código escaneado';
+  el.classList.add('empty');
+  document.getElementById('manualInput').value = '';
+
+  document.getElementById('btnEnviar').disabled = false;
+  showToast('✓ Producto agregado', 'success');
+}
+
+// ── RENDER ITEMS ──
+function renderItems() {
+  const list = document.getElementById('itemsList');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state">No hay productos registrados.<br>Escaneá un código y agregalo.</div>';
+    return;
+  }
+  list.innerHTML = items.map((item, i) => `
+    <div class="item-row" id="item-row-${i}">
+      <div class="item-main">
+        <span class="item-sector-badge ${item.sector === 'Góndola' ? 'gondola' : 'deposito'}">
+          ${item.sector === 'Góndola' ? 'GÓN' : 'DEP'}
+        </span>
+        <span class="item-barcode">${item.barcode}</span>
+        <span class="item-units" id="item-units-${i}">${item.units}</span>
+      </div>
+      <div class="item-actions">
+        <button class="item-action-btn edit-btn" onclick="toggleEdit(${i})">✏️ Editar</button>
+        <button class="item-action-btn del-btn"  onclick="deleteItem(${i})">🗑 Borrar</button>
+      </div>
+      <div class="item-edit-form" id="edit-form-${i}">
+        <div class="edit-row">
+          <span class="edit-label">Cód:</span>
+          <input class="edit-input" id="edit-barcode-${i}" type="tel" inputmode="numeric" value="${item.barcode}">
+        </div>
+        <div class="edit-row">
+          <span class="edit-label">Cant:</span>
+          <input class="edit-input" id="edit-units-${i}" type="tel" inputmode="numeric" value="${item.units}" style="max-width:100px;">
+          <span class="edit-label">Sector:</span>
+          <select class="edit-select" id="edit-sector-${i}">
+            <option value="Góndola"  ${item.sector==='Góndola'  ? 'selected':''}>🛒 Góndola</option>
+            <option value="Depósito" ${item.sector==='Depósito' ? 'selected':''}>🏭 Depósito</option>
+          </select>
+        </div>
+        <div class="edit-row" style="justify-content:flex-end;">
+          <button class="edit-save-btn" onclick="saveEdit(${i})">GUARDAR CAMBIO</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+// ── TOGGLE EDICIÓN ──
+function toggleEdit(i) {
+  // Cerrar cualquier otro abierto
+  if (editingIndex !== null && editingIndex !== i) {
+    document.getElementById(`edit-form-${editingIndex}`).classList.remove('open');
+  }
+  const form = document.getElementById(`edit-form-${i}`);
+  const isOpen = form.classList.toggle('open');
+  editingIndex = isOpen ? i : null;
+  if (isOpen) {
+    // Hacer scroll al formulario
+    setTimeout(() => form.scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+  }
+}
+
+// ── GUARDAR EDICIÓN ──
+function saveEdit(i) {
+  const newBarcode = document.getElementById(`edit-barcode-${i}`).value.trim();
+  const newUnits   = parseInt(document.getElementById(`edit-units-${i}`).value.trim());
+  const newSector  = document.getElementById(`edit-sector-${i}`).value;
+
+  if (!newBarcode)         { showToast('⚠ El código no puede estar vacío', 'error'); return; }
+  if (!newUnits || newUnits <= 0) { showToast('⚠ Cantidad inválida', 'error'); return; }
+
+  items[i].barcode = newBarcode;
+  items[i].units   = newUnits;
+  items[i].sector  = newSector;
+
+  editingIndex = null;
+  renderItems();
+  showToast('✓ Ítem actualizado', 'success');
+}
+
+// ── BORRAR ÍTEM ──
+function deleteItem(i) {
+  items.splice(i, 1);
+  editingIndex = null;
+  renderItems();
+  updateCount();
+  if (!items.length) document.getElementById('btnEnviar').disabled = true;
+  showToast('Ítem eliminado', 'info');
+}
+
+function updateCount() {
+  document.getElementById('totalCount').textContent = items.length;
+}
+
+// ── GENERAR CSV ──
+function generarCSV() {
+  const header = 'Marca temporal,Código de Barras,Unidades,Sector';
+  const rows   = items.map(item =>
+    `${item.ts},${item.barcode},${item.units},${item.sector}`
+  );
+  return [header, ...rows].join('\n');
+}
+
+// ── ENVIAR CSV ──
+async function enviarCSV() {
+  if (!items.length) { showToast('No hay datos para enviar', 'error'); return; }
+
+  const { repositor, fecha, turno } = getDatosConteo();
+  if (!repositor)    { showToast('⚠ Ingresá tu nombre', 'error'); return; }
+  if (!fecha)        { showToast('⚠ Completá la fecha', 'error'); return; }
+  if (!turno)        { showToast('⚠ Seleccioná el turno', 'error'); return; }
+  if (!supermercado) { showToast('⚠ Seleccioná un local', 'error'); return; }
+
+  const csv  = generarCSV();
+  const now  = new Date();
+  const tsEnvio = formatTimestamp(now);
+
+  // Fecha legible para el nombre del archivo
+  const [yyyy, mm, dd] = fecha.split('-');
+  const fechaLegible = `${dd}/${mm}/${yyyy}`;
+  const nombre = `stock_${supermercado.replace(/\s/g,'_')}_${repositor.replace(/\s/g,'_')}_${yyyy}${mm}${dd}_turno_${turno}.csv`;
+
+  document.getElementById('loadingOverlay').classList.add('visible');
+
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      supermercado:   supermercado,
+      fecha:          `${fechaLegible} - Turno ${turno}`,
+      nombre_archivo: nombre,
+      csv_content:    `Repositor: ${repositor}\nLocal: ${supermercado}\nFecha: ${fechaLegible}\nTurno: ${turno}\nEnviado: ${tsEnvio}\nTotal ítems: ${items.length}\n\n${csv}`,
+      name:           repositor,
+      email:          'gabdala1713@gmail.com',
+    });
+
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('✓ CSV enviado por email!', 'success');
+    descargarCSV(csv, nombre);
+
+  } catch(err) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('Error: ' + (err.text || err.message || 'desconocido'), 'error');
+    console.error(err);
+  }
+}
+
+// ── DESCARGA LOCAL BACKUP ──
+function descargarCSV(csv, nombre) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = nombre; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── LIMPIAR TODO ──
+function limpiarTodo() {
+  if (items.length && !confirm('¿Borrar todos los registros actuales?')) return;
+  items = []; barcode = null; cantidad = ''; editingIndex = null;
+  renderItems();
+  updateCount();
+  updateCantidadDisplay();
+  const el = document.getElementById('barcodeDisplay');
+  el.textContent = 'Sin código escaneado';
+  el.classList.add('empty');
+  document.getElementById('manualInput').value = '';
+  document.getElementById('btnEnviar').disabled = true;
+  showToast('Lista limpia', 'info');
+}
+
+// ── UTILS ──
+function formatTimestamp(d) {
+  const dd   = String(d.getDate())        .padStart(2,'0');
+  const mm   = String(d.getMonth()+1)     .padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hh   = String(d.getHours())       .padStart(2,'0');
+  const min  = String(d.getMinutes())     .padStart(2,'0');
+  const ss   = String(d.getSeconds())     .padStart(2,'0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+}
+
+let toastTimer;
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast ' + type;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── SERVICE WORKER (PWA) ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE='don-chiche-stock-v2';
+    self.addEventListener('install',e=>{self.skipWaiting();});
+    self.addEventListener('activate',e=>{
+      e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch',e=>{
+      e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
+    });
+  `;
+  const blob   = new Blob([swCode], { type:'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
