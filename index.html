@@ -1270,7 +1270,7 @@ function updateCount() {
 
 // ── GENERAR CSV (para el bot) ──
 function generarCSV() {
-  const header = 'Marca temporal,Código de Barras,Unidades,Sector';
+  const header = 'Marca temporal,Código de Barras,Unidades,Sector,Local';
   const rows   = items.map(item =>
     item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector
   );
@@ -1316,7 +1316,7 @@ async function enviarCSV() {
     const cuerpo = encodeURIComponent(
       'Marca temporal,Codigo de Barras,Unidades,Sector\n' +
       items.map(function(item) {
-        return item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector;
+        return item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector + ',' + (supermercado.includes('Central') ? 'Central' : 'Sucursal');
       }).join('\n')
     );
     const mailto = 'mailto:gabdala1713@gmail.com?subject=' + asunto + '&body=' + cuerpo;
