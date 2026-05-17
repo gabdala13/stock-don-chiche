@@ -1270,7 +1270,7 @@ function updateCount() {
 
 // ── GENERAR CSV (para el bot) ──
 function generarCSV() {
-  const header = 'Marca temporal,Código de Barras,Unidades,Sector,Local';
+  const header = 'Marca temporal,Codigo de Barras,Unidades,Sector,Local';
   const rows   = items.map(item =>
     item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector + ',' + supermercado
   );
