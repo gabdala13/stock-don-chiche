@@ -1314,7 +1314,7 @@ async function enviarCSV() {
       'Stock ' + supermercado + ' - ' + fechaLegible + ' - Turno ' + turno + ' - ' + repositor
     );
     const cuerpo = encodeURIComponent(
-      'Marca temporal,Codigo de Barras,Unidades,Sector\n' +
+      'Marca temporal,Codigo de Barras,Unidades,Sector,Local\n' +
       items.map(function(item) {
         return item.ts + ',' + item.barcode + ',' + item.units + ',' + item.sector + ',' + (supermercado.includes('Central') ? 'Central' : 'Sucursal');
       }).join('\n')
